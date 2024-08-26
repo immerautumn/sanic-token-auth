@@ -1,5 +1,6 @@
 import typing
 from functools import wraps
+from os import environ
 
 from sanic import Sanic, exceptions
 from sanic.request import Request
@@ -16,12 +17,16 @@ class SanicTokenAuth:
         self.secret_key = secret_key
         self.header = header
         self.token_verifier = token_verifier
+        self.disable_for_testing = environ.get('SANIC_TOKEN_AUTH_DISABLE')
 
     async def _is_authenticated(self, request: Request) -> bool:
-        token = request.headers.get(self.header, None) if self.header else request.token
-        if self.token_verifier:
-            return await self.token_verifier(token)
-        return token == self.secret_key
+        if self.disable_for_testing:
+            return True
+        else:
+            token = request.headers.get(self.header, None) if self.header else request.token
+            if self.token_verifier:
+                return await self.token_verifier(token)
+            return token == self.secret_key
 
     def auth_required(self, handler=None):
         @wraps(handler)
